@@ -24,9 +24,13 @@ jobs:
           LINK=$(yt-dlp --no-warnings -g -f 95 "https://www.youtube.com/watch?v=EqoCJ8BPxtE")
           echo "LINK=$LINK" >> $GITHUB_ENV
 
-      - name: M3U8 güncelle
+      - name: M3U8 sıfırdan yaz
         run: |
-          sed -i "s|XXXLinkXXX|${LINK}|g" LinkBu.m3u8
+          echo "#EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-INDEPENDENT-SEGMENTS
+      #EXT-X-STREAM-INF:NAME=480p,RESOLUTION=854x480
+      ${LINK}" > LinkBu.m3u8
 
       - name: Git config
         run: |
