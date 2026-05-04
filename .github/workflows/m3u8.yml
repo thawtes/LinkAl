@@ -20,28 +20,27 @@ jobs:
       - name: Load cookies
         run: echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
 
-      - name: Generate M3U8
+      # 🔥 AYRI STEP → HATA BURADA OLMAZ
+      - name: Get stream link
+        id: stream
         run: |
-          mkdir deploy
-
           LINK=$(yt-dlp \
             --cookies cookies.txt \
             --extractor-args "youtube:player_client=android" \
-            -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
+            -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE")
 
-          echo "LINK=$LINK"
+          echo "link=$LINK" >> $GITHUB_OUTPUT
 
-          if [ -z "$LINK" ]; then
-            echo "ERROR: stream alınamadı"
-            exit 1
-          fi
+      - name: Create m3u8 file
+        run: |
+          mkdir deploy
 
           echo "#EXTM3U
 #EXT-X-VERSION:3
 #EXT-X-STREAM-INF:BANDWIDTH=800000
-$LINK" > deploy/stream.m3u8
+${{ steps.stream.outputs.link }}" > deploy/stream.m3u8
 
-      - name: Deploy to Netlify
+      - name: Deploy Netlify
         run: |
           netlify deploy \
             --prod \
@@ -50,4 +49,4 @@ $LINK" > deploy/stream.m3u8
             --site=${{ secrets.NETLIFY_SITE_ID }}
 
       - name: Done
-        run: echo "STREAM READY"
+        run: echo "OK"
