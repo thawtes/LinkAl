@@ -1,41 +1,41 @@
-name: YouTube M3U8 → Netlify CDN
+name: YouTube M3U8 → Netlify
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 */4 * * *'
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Repo checkout
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install yt-dlp
+      - name: Install tools
         run: |
           sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
           sudo chmod a+rx /usr/local/bin/yt-dlp
-
-      - name: Install Netlify CLI
-        run: npm install -g netlify-cli
+          npm install -g netlify-cli
 
       - name: Load cookies
-        run: |
-          echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
+        run: echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
 
       - name: Generate M3U8
         run: |
+          mkdir deploy
+
           LINK=$(yt-dlp \
             --cookies cookies.txt \
-            --no-check-certificates \
             --extractor-args "youtube:player_client=android" \
             -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
 
           echo "LINK=$LINK"
 
-          mkdir deploy
+          if [ -z "$LINK" ]; then
+            echo "ERROR: stream alınamadı"
+            exit 1
+          fi
+
           echo "#EXTM3U
 #EXT-X-VERSION:3
 #EXT-X-STREAM-INF:BANDWIDTH=800000
@@ -48,3 +48,6 @@ $LINK" > deploy/stream.m3u8
             --dir=deploy \
             --auth=${{ secrets.NETLIFY_AUTH_TOKEN }} \
             --site=${{ secrets.NETLIFY_SITE_ID }}
+
+      - name: Done
+        run: echo "STREAM READY"
