@@ -19,18 +19,17 @@ jobs:
           sudo apt install -y yt-dlp
 
       - name: Link al
-        id: getlink
         run: |
-          LINK=$(yt-dlp --no-warnings -g -f 95 "https://www.youtube.com/watch?v=EqoCJ8BPxtE")
+          LINK=$(yt-dlp -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
           echo "LINK=$LINK" >> $GITHUB_ENV
 
-      - name: M3U8 sıfırdan yaz
+      - name: M3U8 oluştur
         run: |
           echo "#EXTM3U
-      #EXT-X-VERSION:3
-      #EXT-X-INDEPENDENT-SEGMENTS
-      #EXT-X-STREAM-INF:NAME=480p,RESOLUTION=854x480
-      ${LINK}" > LinkBu.m3u8
+#EXT-X-VERSION:3
+#EXT-X-INDEPENDENT-SEGMENTS
+#EXT-X-STREAM-INF:NAME=480p,RESOLUTION=854x480
+${LINK}" > LinkBu.m3u8
 
       - name: Git config
         run: |
@@ -40,5 +39,5 @@ jobs:
       - name: Commit & push
         run: |
           git add LinkBu.m3u8
-          git commit -m "M3U8 link güncellendi" || echo "Değişiklik yok"
+          git commit -m "M3U8 link otomatik güncellendi" || echo "Değişiklik yok"
           git push
