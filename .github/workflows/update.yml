@@ -1,4 +1,4 @@
-name: M3U8 Link Güncelle
+name: M3U8 Cookie Fix
 
 permissions:
   contents: write
@@ -7,26 +7,25 @@ on:
   workflow_dispatch:
 
 jobs:
-  update-link:
+  update:
     runs-on: ubuntu-latest
 
     steps:
       - name: Repo çek
         uses: actions/checkout@v4
 
-      - name: Node.js kur
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: yt-dlp kur
         run: |
           sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
           sudo chmod a+rx /usr/local/bin/yt-dlp
 
-      - name: Link al
+      - name: Cookie dosyası oluştur
         run: |
-          LINK=$(yt-dlp --js-runtimes node -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
+          echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
+
+      - name: Link al (COOKIE ile)
+        run: |
+          LINK=$(yt-dlp --cookies cookies.txt --js-runtimes node -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
 
           echo "LINK=$LINK"
 
@@ -41,10 +40,11 @@ jobs:
         run: |
           printf "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000\n%s\n" "$LINK" > LinkBu.m3u8
 
-      - name: Git push
+      - name: Commit & push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+
           git add LinkBu.m3u8
-          git commit -m "update" || echo "no change"
+          git commit -m "cookie fix update" || echo "no change"
           git push
