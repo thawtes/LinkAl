@@ -1,0 +1,40 @@
+name: M3U8 Link Güncelle
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'   # 4 saatte bir
+  workflow_dispatch:
+
+jobs:
+  update-link:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repo çek
+        uses: actions/checkout@v4
+
+      - name: yt-dlp kur
+        run: |
+          sudo apt update
+          sudo apt install -y yt-dlp
+
+      - name: Link al
+        id: getlink
+        run: |
+          LINK=$(yt-dlp --no-warnings -g -f 95 "https://www.youtube.com/watch?v=EqoCJ8BPxtE")
+          echo "LINK=$LINK" >> $GITHUB_ENV
+
+      - name: M3U8 güncelle
+        run: |
+          sed -i "s|XXXLinkXXX|${LINK}|g" LinkBu.m3u8
+
+      - name: Git config
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+      - name: Commit & push
+        run: |
+          git add LinkBu.m3u8
+          git commit -m "M3U8 link güncellendi" || echo "Değişiklik yok"
+          git push
