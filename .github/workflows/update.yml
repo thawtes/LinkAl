@@ -1,5 +1,8 @@
 name: M3U8 Link Güncelle
 
+permissions:
+  contents: write
+
 on:
   schedule:
     - cron: '0 */4 * * *'
