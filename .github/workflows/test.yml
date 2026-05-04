@@ -1,0 +1,25 @@
+name: Netlify Test Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create file
+        run: |
+          mkdir deploy
+          echo "NETLIFY TEST OK" > deploy/stream.m3u8
+
+      - name: Install Netlify CLI
+        run: npm install -g netlify-cli
+
+      - name: Deploy
+        run: |
+          netlify deploy \
+            --prod \
+            --dir=deploy \
+            --auth=${{ secrets.NETLIFY_AUTH_TOKEN }} \
+            --site=${{ secrets.NETLIFY_SITE_ID }}
