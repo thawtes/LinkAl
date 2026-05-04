@@ -8,6 +8,9 @@ on:
     - cron: '0 */4 * * *'
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   update-link:
     runs-on: ubuntu-latest
@@ -16,25 +19,39 @@ jobs:
       - name: Repo çek
         uses: actions/checkout@v4
 
-      - name: yt-dlp kur
+      - name: yt-dlp güncel kur
         run: |
-          sudo apt update
-          sudo apt install -y yt-dlp
+          sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+          yt-dlp --version
 
       - name: Link al
         run: |
-          LINK=$(yt-dlp -f "best[protocol^=m3u8]" -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
+          echo "Link alınıyor..."
+
+          LINK=$(yt-dlp -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" 2>/dev/null | head -n 1)
 
           if [ -z "$LINK" ]; then
-            echo "Link alınamadı!"
-            exit 1
+            echo "⚠️ Link alınamadı, eski dosya korunacak"
+            exit 0
           fi
+
+          echo "✅ Link bulundu:"
+          echo "$LINK"
 
           echo "LINK=$LINK" >> $GITHUB_ENV
 
       - name: M3U8 oluştur
         run: |
-          printf "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-INDEPENDENT-SEGMENTS\n#EXT-X-STREAM-INF:NAME=480p,RESOLUTION=854x480\n%s\n" "$LINK" > LinkBu.m3u8
+          if [ -z "$LINK" ]; then
+            echo "Link yok, dosya oluşturulmadı"
+            exit 0
+          fi
+
+          printf "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-INDEPENDENT-SEGMENTS\n#EXT-X-STREAM-INF:NAME=Auto,RESOLUTION=854x480\n%s\n" "$LINK" > LinkBu.m3u8
+
+          echo "Dosya oluşturuldu:"
+          cat LinkBu.m3u8
 
       - name: Git config
         run: |
@@ -44,5 +61,11 @@ jobs:
       - name: Commit & push
         run: |
           git add LinkBu.m3u8
-          git commit -m "M3U8 link otomatik güncellendi" || echo "Değişiklik yok"
-          git push
+
+          if git diff --cached --quiet; then
+            echo "Değişiklik yok, commit atılmadı"
+            exit 0
+          fi
+
+          git commit -m "M3U8 link otomatik güncellendi"
+          git push origin HEAD:${{ github.ref_name }}
