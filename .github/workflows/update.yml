@@ -4,8 +4,6 @@ permissions:
   contents: write
 
 on:
-  schedule:
-    - cron: '0 */4 * * *'
   workflow_dispatch:
 
 env:
@@ -25,32 +23,31 @@ jobs:
           sudo chmod a+rx /usr/local/bin/yt-dlp
           yt-dlp --version
 
+      # 🔥 BURASI EN ÖNEMLİ DEBUG STEP
+      - name: Debug yt-dlp detaylı log
+        run: |
+          yt-dlp -v "https://www.youtube.com/watch?v=EqoCJ8BPxtE"
+
       - name: Link al
         run: |
           echo "Link alınıyor..."
 
-          LINK=$(yt-dlp -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" 2>/dev/null | head -n 1)
+          LINK=$(yt-dlp -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
+
+          echo "Çekilen link: $LINK"
 
           if [ -z "$LINK" ]; then
-            echo "⚠️ Link alınamadı, eski dosya korunacak"
-            exit 0
+            echo "❌ Link alınamadı!"
+            exit 1
           fi
-
-          echo "✅ Link bulundu:"
-          echo "$LINK"
 
           echo "LINK=$LINK" >> $GITHUB_ENV
 
       - name: M3U8 oluştur
         run: |
-          if [ -z "$LINK" ]; then
-            echo "Link yok, dosya oluşturulmadı"
-            exit 0
-          fi
-
           printf "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-INDEPENDENT-SEGMENTS\n#EXT-X-STREAM-INF:NAME=Auto,RESOLUTION=854x480\n%s\n" "$LINK" > LinkBu.m3u8
 
-          echo "Dosya oluşturuldu:"
+          echo "Oluşturulan dosya:"
           cat LinkBu.m3u8
 
       - name: Git config
@@ -63,9 +60,9 @@ jobs:
           git add LinkBu.m3u8
 
           if git diff --cached --quiet; then
-            echo "Değişiklik yok, commit atılmadı"
+            echo "Değişiklik yok"
             exit 0
           fi
 
-          git commit -m "M3U8 link otomatik güncellendi"
+          git commit -m "M3U8 link debug"
           git push origin HEAD:${{ github.ref_name }}
