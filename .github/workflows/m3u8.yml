@@ -1,0 +1,67 @@
+name: YouTube M3U8 → Netlify CDN
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */4 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repo çek
+        uses: actions/checkout@v4
+
+      - name: yt-dlp kur
+        run: |
+          sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+
+      - name: Netlify CLI kur
+        run: npm install -g netlify-cli
+
+      - name: Cookie yükle
+        run: |
+          echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
+
+      - name: M3U8 üret (YouTube)
+        run: |
+          set +e
+
+          LINK=$(yt-dlp \
+            --cookies cookies.txt \
+            --no-check-certificates \
+            --js-runtimes node \
+            -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
+
+          if [ -z "$LINK" ]; then
+            echo "❌ Stream alınamadı"
+            exit 0
+          fi
+
+          mkdir deploy
+
+          echo "#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-STREAM-INF:BANDWIDTH=800000
+$LINK" > deploy/stream.m3u8
+
+          echo "📄 M3U8 oluşturuldu:"
+          cat deploy/stream.m3u8
+
+      - name: Netlify deploy
+        run: |
+          netlify deploy \
+            --prod \
+            --dir=deploy \
+            --auth=${{ secrets.NETLIFY_AUTH_TOKEN }} \
+            --site=${{ secrets.NETLIFY_SITE_ID }}
+
+      - name: Sonuç
+        run: |
+          echo "🚀 STREAM READY"
+          echo "https://magnificent-conkies-05c9ae.netlify.app/stream.m3u8"
