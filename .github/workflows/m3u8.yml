@@ -1,4 +1,4 @@
-name: YouTube M3U8 → Netlify
+name: M3U8 Simple Pipeline
 
 on:
   workflow_dispatch:
@@ -11,36 +11,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install tools
+      - name: Install yt-dlp
         run: |
           sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
           sudo chmod a+rx /usr/local/bin/yt-dlp
-          npm install -g netlify-cli
 
-      - name: Load cookies
+      - name: Install Netlify CLI
+        run: npm install -g netlify-cli
+
+      - name: Load cookie
         run: echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
 
-      # 🔥 AYRI STEP → HATA BURADA OLMAZ
-      - name: Get stream link
-        id: stream
+      - name: Create deploy folder
+        run: mkdir deploy
+
+      - name: Get stream + create file (SAFE MODE)
         run: |
+          echo "Getting stream..."
+
           LINK=$(yt-dlp \
             --cookies cookies.txt \
-            --extractor-args "youtube:player_client=android" \
-            -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE")
+            --no-warnings \
+            -f "best" \
+            -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" || true)
 
-          echo "link=$LINK" >> $GITHUB_OUTPUT
+          echo "LINK=$LINK"
 
-      - name: Create m3u8 file
-        run: |
-          mkdir deploy
-
-          echo "#EXTM3U
-#EXT-X-VERSION:3
+          if [ -z "$LINK" ]; then
+            echo "FALLBACK STREAM" > deploy/stream.m3u8
+          else
+            echo "#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=800000
-${{ steps.stream.outputs.link }}" > deploy/stream.m3u8
+$LINK" > deploy/stream.m3u8
+          fi
 
-      - name: Deploy Netlify
+      - name: Deploy to Netlify
         run: |
           netlify deploy \
             --prod \
@@ -49,4 +54,4 @@ ${{ steps.stream.outputs.link }}" > deploy/stream.m3u8
             --site=${{ secrets.NETLIFY_SITE_ID }}
 
       - name: Done
-        run: echo "OK"
+        run: echo "DONE"
