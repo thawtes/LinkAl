@@ -23,7 +23,13 @@ jobs:
 
       - name: Link al
         run: |
-          LINK=$(yt-dlp -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
+          LINK=$(yt-dlp -f "best[protocol^=m3u8]" -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
+
+          if [ -z "$LINK" ]; then
+            echo "Link alınamadı!"
+            exit 1
+          fi
+
           echo "LINK=$LINK" >> $GITHUB_ENV
 
       - name: M3U8 oluştur
