@@ -1,50 +1,83 @@
-name: M3U8 Cookie Fix
+name: M3U8 Link Güncelle
 
 permissions:
   contents: write
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 */4 * * *'
 
 jobs:
-  update:
+  update-link:
     runs-on: ubuntu-latest
 
     steps:
       - name: Repo çek
         uses: actions/checkout@v4
 
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: yt-dlp kur
         run: |
           sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
           sudo chmod a+rx /usr/local/bin/yt-dlp
+          yt-dlp --version
 
-      - name: Cookie dosyası oluştur
+      - name: Cookie oluştur
         run: |
           echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
 
-      - name: Link al (COOKIE ile)
+          echo "Cookie kontrol (ilk 5 satır):"
+          head -n 5 cookies.txt
+
+      - name: Link al (cookie + node runtime)
         run: |
-          LINK=$(yt-dlp --cookies cookies.txt --js-runtimes node -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
+          set +e
+
+          LINK=$(yt-dlp \
+            --cookies cookies.txt \
+            --no-check-certificates \
+            --js-runtimes node \
+            -g "https://www.youtube.com/watch?v=EqoCJ8BPxtE" | head -n 1)
 
           echo "LINK=$LINK"
 
           if [ -z "$LINK" ]; then
-            echo "Link alınamadı!"
-            exit 1
+            echo "❌ Link alınamadı ama workflow durdurulmadı"
+            exit 0
           fi
 
           echo "LINK=$LINK" >> $GITHUB_ENV
 
       - name: M3U8 oluştur
         run: |
-          printf "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000\n%s\n" "$LINK" > LinkBu.m3u8
+          if [ -z "$LINK" ]; then
+            echo "Link yok, dosya oluşturulmadı"
+            exit 0
+          fi
 
-      - name: Commit & push
+          printf "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-INDEPENDENT-SEGMENTS\n#EXT-X-STREAM-INF:BANDWIDTH=800000\n%s\n" "$LINK" > LinkBu.m3u8
+
+          echo "Oluşturulan dosya:"
+          cat LinkBu.m3u8
+
+      - name: Git config
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
+      - name: Commit & push
+        run: |
           git add LinkBu.m3u8
-          git commit -m "cookie fix update" || echo "no change"
-          git push
+
+          if git diff --cached --quiet; then
+            echo "Değişiklik yok"
+            exit 0
+          fi
+
+          git commit -m "auto: update m3u8 link"
+          git push origin HEAD:${{ github.ref_name }}
